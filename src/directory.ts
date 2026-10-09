@@ -113,7 +113,9 @@ export function verifyDirectory(input: {
   }
 
   const exclude = new Set(input.exclude ?? [])
-  const actualFiles = listRegularFiles({ directory: input.directory }).filter((file) => !exclude.has(file))
+  const listed = listRegularFiles({ directory: input.directory })
+  if (!listed.ok) return { ok: false, reason: 'file_not_regular' }
+  const actualFiles = listed.files.filter((file) => !exclude.has(file))
   const expectedFiles = entries.map((entry) => entry.relative_path).filter((file) => !exclude.has(file))
   if (actualFiles.length !== expectedFiles.length
     || actualFiles.some((file, index) => file !== expectedFiles[index])) {
@@ -152,7 +154,9 @@ export function buildDirectoryManifest(input: {
   readonly exclude?: readonly string[]
 }): { ok: true; entries: ManifestEntry[]; fingerprint: string } | { ok: false; reason: 'file_not_regular' } {
   const exclude = new Set(input.exclude ?? [])
-  const relativePaths = listRegularFiles({ directory: input.directory }).filter((file) => !exclude.has(file))
+  const listed = listRegularFiles({ directory: input.directory })
+  if (!listed.ok) return { ok: false, reason: 'file_not_regular' }
+  const relativePaths = listed.files.filter((file) => !exclude.has(file))
   const entries: ManifestEntry[] = []
   for (const relativePath of relativePaths) {
     const read = readStableRegularFile({ directory: input.directory, relativePath })
@@ -166,35 +170,53 @@ export function buildDirectoryManifest(input: {
   return { ok: true, entries, fingerprint: directoryFingerprint({ entries }) }
 }
 
-function listRegularFiles(input: { directory: string }): string[] {
+function listRegularFiles(input: { directory: string }): { ok: true; files: string[] } | { ok: false; reason: 'file_not_regular' } {
   let realDirectory: string
   try {
     realDirectory = realpathSync(input.directory)
   } catch {
-    return []
+    return { ok: false, reason: 'file_not_regular' }
   }
   const files: string[] = []
-  const walk = (directory: string): void => {
-    const entries = readdirSync(directory, { withFileTypes: true })
+  const fail = (): { ok: false; reason: 'file_not_regular' } => ({ ok: false, reason: 'file_not_regular' })
+  const walk = (directory: string): { ok: true } | { ok: false; reason: 'file_not_regular' } => {
+    let entries
+    try {
+      entries = readdirSync(directory, { withFileTypes: true })
+    } catch {
+      return fail()
+    }
     for (const entry of entries) {
       const absolutePath = path.join(directory, entry.name)
       const relativePath = path.relative(input.directory, absolutePath).split(path.sep).join('/')
-      const metadata = lstatSync(absolutePath)
-      if (metadata.isSymbolicLink()) continue
+      let metadata
+      try {
+        metadata = lstatSync(absolutePath)
+      } catch {
+        return fail()
+      }
+      // An irregular entry (symlink, hard link, device, …) ANYWHERE in the
+      // tree fails the walk: a receipt must never silently coexist with a
+      // repointable entry, manifest-listed or not.
+      if (metadata.isSymbolicLink()) return fail()
       const expectedRealPath = path.resolve(realDirectory, ...relativePath.split('/'))
       try {
-        if (realpathSync(absolutePath) !== expectedRealPath) continue
+        if (realpathSync(absolutePath) !== expectedRealPath) return fail()
       } catch {
-        continue
+        return fail()
       }
-      if (metadata.isDirectory()) walk(absolutePath)
-      else if (metadata.isFile() && metadata.nlink === 1) files.push(relativePath)
+      if (metadata.isDirectory()) {
+        const descended = walk(absolutePath)
+        if (!descended.ok) return descended
+      } else if (metadata.isFile() && metadata.nlink === 1) {
+        files.push(relativePath)
+      } else {
+        return fail()
+      }
     }
+    return { ok: true }
   }
-  try {
-    walk(input.directory)
-  } catch {
-    return []
-  }
-  return files.sort(comparePaths)
+  const walked = walk(input.directory)
+  if (!walked.ok) return walked
+  return { ok: true, files: files.sort(comparePaths) }
 }

@@ -121,11 +121,22 @@ describe('directory fingerprint and verification', () => {
     }))).toBe('manifest_path_invalid')
   })
 
-  it('skips symlinks when building a manifest, and verification rejects a swapped-in symlink', () => {
+  it('fails on symlinks anywhere in the tree — building AND verifying', () => {
     const dir = fixture('symlink', { 'real.json': 'r' })
     symlinkSync(path.join(dir, 'real.json'), path.join(dir, 'alias.json'))
+    // Building refuses: the manifest cannot silently coexist with a
+    // repointable entry.
     const manifest = buildDirectoryManifest({ directory: dir })
-    if (!manifest.ok) throw new Error('fixture build failed')
-    expect(manifest.entries.map((entry) => entry.relative_path)).toEqual(['real.json'])
+    expect(manifest).toEqual({ ok: false, reason: 'file_not_regular' })
+
+    // Verifying refuses too, even when the symlink is NOT in the manifest
+    // (an extra irregular file must fail the whole walk, not be skipped).
+    const clean = fixture('symlink-verify', { 'real.json': 'r' })
+    const cleanManifest = buildDirectoryManifest({ directory: clean })
+    if (!cleanManifest.ok) throw new Error('fixture build failed')
+    symlinkSync(path.join(clean, 'real.json'), path.join(clean, 'planted-alias.json'))
+    expect(verifyDirectory({
+      directory: clean, manifest: cleanManifest.entries, fingerprint: cleanManifest.fingerprint,
+    })).toEqual({ ok: false, reason: 'file_not_regular' })
   })
 })

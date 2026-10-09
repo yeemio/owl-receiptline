@@ -91,6 +91,10 @@ export interface DeliveryManifestLike {
 export interface SealedMember {
   id: string
   status: string
+  /** Sealed version of this member, when the sidecar records one; compared
+   * against a ref's `versionHash` so an old version can never back a
+   * current reference. */
+  versionHash?: string | null
   availableAt?: string | null
 }
 
@@ -219,14 +223,18 @@ function checkDelivery(
   return firstFailure
 }
 
-/** Alias validity: the twin exists in THIS manifest, is FULL, same body hash. */
+/** Alias validity: the twin exists in THIS manifest, carries content
+ * authority itself (any substantive view), and — when both sides declare
+ * body hashes — they match. */
 function aliasIsValid(manifest: DeliveryManifestLike, slice: DeliverySlice): boolean {
   const target = slice.aliasOf
   if (target == null) return false
   const twin = manifest.slices.find((item) => item.id === target)
-  if (twin === undefined || twin.view !== 'FULL') return false
-  if (slice.bodyHash == null || twin.bodyHash == null) return false
-  return slice.bodyHash === twin.bodyHash
+  if (twin === undefined || !carriesContentAuthority(twin)) return false
+  if (slice.bodyHash != null && twin.bodyHash != null) {
+    return slice.bodyHash === twin.bodyHash
+  }
+  return true
 }
 
 /**
@@ -234,19 +242,25 @@ function aliasIsValid(manifest: DeliveryManifestLike, slice: DeliverySlice): boo
  * refuse membership outright; support mode demands a support-sufficient
  * status, display mode a display-sufficient status (discussion may name a
  * conflicted member; it cannot be support); BOTH demand pre-cutoff
- * availability. Returns the named failure code, or null when sealed.
+ * availability and, when the ref pins a version and the sidecar records
+ * one, that the versions agree. Returns the named failure code, or null
+ * when sealed.
  */
 function checkMembership(
   membership: MembershipSidecarLike,
   refId: string,
   mode: 'support' | 'display',
   config: CitationGateConfig,
+  refVersionHash?: string | null,
 ): string | null {
   const excluded = membership.exclusions?.includes(refId) ?? false
   const member = membership.members.find((item) => item.id === refId)
   if (member === undefined || excluded) return 'ref_not_sealed'
   const allowed = mode === 'support' ? config.supportStatuses : config.displayStatuses
   if (!allowed.has(member.status)) return 'ref_member_status_insufficient'
+  if (refVersionHash != null && member.versionHash != null && member.versionHash !== refVersionHash) {
+    return 'ref_member_version_mismatch'
+  }
   if (member.availableAt != null) {
     const availableMs = Date.parse(member.availableAt)
     const cutoffMs = Date.parse(membership.cutoffAt)
@@ -360,7 +374,7 @@ export function assessCitations(input: {
         fieldResults.push(refResult('NOT_EVALUABLE', 'membership_not_recorded'))
         continue
       }
-      const sealed = checkMembership(membership, refId, policy.membership, config)
+      const sealed = checkMembership(membership, refId, policy.membership, config, rawRef.versionHash)
       if (sealed !== null) {
         decisiveStates.push('FAIL')
         fieldResults.push(refResult('FATAL', sealed))

@@ -689,4 +689,48 @@ describe('extraction completeness and usable', () => {
     expect(result.state).toBe('FAIL')
     expect(result.usable).toBe(false)
   })
+
+  it('a ref pinning a version the sealed member does not carry is FATAL', () => {
+    const versionedMembership: MembershipSidecarLike = {
+      ...membership,
+      members: [{ id: 'ev-market-1', status: 'ADMITTED', versionHash: 'v1' }],
+    }
+    // Delivery carries v2 (D side passes); the sealed member is still v1.
+    const versionedManifest: DeliveryManifestLike = {
+      ...manifest,
+      slices: [{ id: 'ev-market-1', versionHash: 'v2', section: null, view: 'FULL' }],
+    }
+    const result = assessCitations({
+      refs: [ref({ id: 'ev-market-1', versionHash: 'v2' })],
+      coreFacts: okCore,
+      manifest: versionedManifest,
+      membership: versionedMembership,
+      config: supportPolicy,
+    })
+    expect(result.state).toBe('FAIL')
+    expect(result.fieldResults).toContainEqual(
+      expect.objectContaining({ severity: 'FATAL', code: 'ref_member_version_mismatch' }),
+    )
+    // Matching versions (or a member without a recorded version) pass.
+    const matching = assessCitations({
+      refs: [ref({ id: 'ev-market-1', versionHash: 'v1' })],
+      coreFacts: okCore,
+      manifest,
+      membership: versionedMembership,
+      config: supportPolicy,
+    })
+    expect(matching.decisiveState).toBe('PASS')
+    // Versions absent on BOTH sides never trip the check (it is optional).
+    const unrecorded = assessCitations({
+      refs: [ref({ id: 'ev-market-1', versionHash: null })],
+      coreFacts: okCore,
+      manifest: {
+        ...manifest,
+        slices: [{ id: 'ev-market-1', versionHash: null, section: null, view: 'FULL' }],
+      },
+      membership,
+      config: supportPolicy,
+    })
+    expect(unrecorded.decisiveState).toBe('PASS')
+  })
 })

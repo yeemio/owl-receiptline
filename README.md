@@ -65,7 +65,8 @@ writeAppendOnlyJson({
 })
 
 // Later, from an untrusted copy of the whole directory:
-const raw = JSON.parse(readReceiptBytes.toString('utf8'))
+import { readFileSync } from 'node:fs'
+const raw = JSON.parse(readFileSync(`${runDir}/receipt.json`, 'utf8'))
 const verified = verifyEnvelope<{ fingerprint: string; output_files: unknown[] }>({
   value: raw, expected_artifact_version: 'my-run-receipt.v1',
 })
