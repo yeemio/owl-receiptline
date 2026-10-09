@@ -44,3 +44,20 @@ export {
   type Verdict,
   type Disclosure,
 } from './verdict.js'
+export {
+  assessCitations,
+  worstGateState,
+  findUniqueCorrection,
+  type GateState,
+  type CitationShape,
+  type CitationRef,
+  type RefCheckPolicy,
+  type GateFieldResult,
+  type DeliverySlice,
+  type DeliveryManifestLike,
+  type SealedMember,
+  type MembershipSidecarLike,
+  type CoreFactCheck,
+  type CitationGateConfig,
+  type CitationAssessment,
+} from './citation.js'

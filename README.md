@@ -34,6 +34,10 @@ Every artifact directory ends with a **receipt**: a self-hashed JSON envelope ca
 
 `Verdict = FAIL | PARTIAL_NOT_EVALUABLE | PASS`; `combineVerdicts` lets the worst truth win. "All evidence was filtered out" is **not** PASS and **not** FAIL. `Disclosure` carries the names of undatable/unreadable items, and `denominator_known: false` caps every completeness claim — "37 of 40 checks passed" only means something when the 40 is known to be real.
 
+### `citation` — did the decision actually see what it cites?
+
+`assessCitations` checks every decisive reference against two receipt artifacts: the **delivery manifest** (D — was the cited body handed to the model in a substantive view: FULL/EXCERPT/PROJECTION, or via an alias to a FULL slice with the same body hash?) and the **sealed membership sidecar** (S — is the cited id sealed, status-sufficient, and available before the cutoff?; discussion may name conflicted members, support may not). Core identity facts fold in tri-state: false is FATAL, unknown is NOT_EVALUABLE. A null manifest or sidecar is the legacy sentinel — NOT_EVALUABLE, never FAIL and never a vacuous PASS; zero refs with an incomplete host extraction stays NOT_EVALUABLE; an unresolvable decisive citation is named, not dropped. The only spelling correction allowed is a unique near-id candidate (case/`_`/`-` normalized) that is uniquely versioned in D and support-admitted in S — recorded as ADVISORY, never waiving a FATAL. Domain policy (which kinds check delivery, support vs. display statuses) is injected via `refPolicy` and status sets.
+
 ## Quick look
 
 ```ts

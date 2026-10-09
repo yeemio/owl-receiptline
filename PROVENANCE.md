@@ -13,6 +13,7 @@ owl-receiptline is a whitelist extraction from OwlFootball, a production AI deci
 | `src/append-only.ts` | `historical-blind-replay-v1.ts` `writeJsonCreateOnly` (L821–842): open 'wx' 0o600 → write → fsync → chmod 0o400 → fsync(directory), EEXIST → named conflict error |
 | `src/lineage.ts` | `run-fingerprint-receipt-v1.ts` lineage validation (L243–261): null-or-present single-parent lineage, before==after enforced, `source_run_unchanged: true` |
 | `src/verdict.ts` | Three-state verdict ordering from `ownerpick/citation-verdict-v1.ts` (FAIL > PARTIAL_NOT_EVALUABLE > PASS, L134–139; empty-filtered ≠ PASS, L287–299); undatable/denominator disclosure from `merm-insight/four-column-routes-v1.ts` (L1000–1034, undatable roots named and disclosed, never silently dropped) and `model-route-ops/projection-v1.ts` (`undatable_run_dirs` + `denominator_known: false` capping) |
+| `src/citation.ts` | Generalization of `ownerpick/citation-verdict-v1.ts` (core-fact tri-state L141–157; decisive-ref assessment incl. malformed/unresolvable handling L266–380; unique-only id correction discipline L211–264), `ownerpick/delivery-manifest-v1.ts` `ownerPickDeliverySupportsFactV1` (L352–391: content-authority views, catalog-header/identifier-only refusal, duplicate alias inheritance), and `ownerpick/sealed-membership-v1.ts` `membershipGate`/`memberSupportsUncontestedFactsV1`/`memberDisplayableInFrameV1` (L195–244: named exclusions, status discipline, after-cutoff refusal) |
 
 Extraction date: 2026-10-09.
 
@@ -23,10 +24,11 @@ Extraction date: 2026-10-09.
 3. **Failures are structured reasons everywhere** (`{ ok: false, reason }`), where the source throws sentinel errors caught at one boundary.
 4. **Envelope hash field is configurable** (`hash` default); the source hardcodes field names per receipt type.
 5. **Directory fingerprint hashes the sorted manifest array via canonicalJson** rather than `JSON.stringify` of pre-normalized objects, making the fingerprint insensitive to key order in the input entries.
+6. **Citation gate policy is injected, not hardcoded.** The source bakes in the `obs-`/`ev-` namespaces, fixed ref kinds, the known `asian-handicap`→`asian_handicap` correction token, the ADMITTED/CONFLICTED status vocabulary, and named K0 core-fact fields. owl-receiptline takes `refPolicy(kind, purpose)` and support/display status sets as config, treats core facts as an opaque list, and generalizes the spelling correction to any case/`_`/`-` near-id slip under the same unique-only discipline (exactly one normalized candidate, exactly one D version, exactly one support-admitted S member); the source's namespace checks and correction word list are deliberately not extracted. The library also consumes `DeliveryManifestLike`/`MembershipSidecarLike` shapes — it does not build delivery manifests or sealed sidecars (the source builders `collectOwnerPickRequestDeliveryV1`/`sealOwnerPickMembershipV1` and their content hashing stay in the source system).
 
 ## Not extracted (source-system concerns)
 
-Blind-replay forbidden-keyword scanning, kickoff/betting authority flags, delivery manifests and sealed-membership sidecars (citation gate K1 D/S sides), the `runs/<match>/<stamp]>` layout, endpoint registries, and the Chinese-domain leak word lists. The citation-gate K0–K3 framework itself is a future candidate for its own module once this core stabilizes.
+Blind-replay forbidden-keyword scanning, kickoff/betting authority flags, the `runs/<match>/<stamp>>` layout, endpoint registries, and the Chinese-domain leak word lists.
 
 ## License
 
