@@ -61,3 +61,14 @@ export {
   type CitationGateConfig,
   type CitationAssessment,
 } from './citation.js'
+export {
+  SUPERSEDE_ARTIFACT_VERSION,
+  makeSupersede,
+  verifySupersedeChain,
+  latestOf,
+  type SupersedeIdentity,
+  type SupersedeRecord,
+  type SupersedeChain,
+  type SupersedeChainFailure,
+  type SupersedeChainVerification,
+} from './supersede.js'
