@@ -1,0 +1,36 @@
+{
+  "name": "owl-receiptline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Auditable receipt protocol for AI decision pipelines: self-hashed envelopes, directory fingerprints with byte-exact re-verification, append-only landing, single-parent lineage, and honest three-state verdicts.",
+  "license": "MIT",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "PROVENANCE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
